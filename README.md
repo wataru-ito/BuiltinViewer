@@ -1,5 +1,4 @@
-# BuiltinTextureViewer
-【Unity】Unityに組み込まれているTextureやGUISkinを見るツール
+## Unity内蔵アセットの調査をお助けするツール群
 
 # BuiltintTextureViewer
 
