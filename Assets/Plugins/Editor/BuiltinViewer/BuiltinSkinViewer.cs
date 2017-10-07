@@ -177,6 +177,7 @@ namespace BuiltinViewer
 
 			EditorGUILayout.LabelField("Editor Label", m_selectedStyle, options);
 			EditorGUILayout.LabelField("Editor", "Label", m_selectedStyle, options);
+			m_sampleToggle = EditorGUILayout.Foldout(m_sampleToggle, "Foldout", m_selectedStyle);
 			m_sampleToggle = EditorGUILayout.Toggle("Editor Toggle", m_sampleToggle, options);
 			m_sampleToggle = EditorGUILayout.Toggle(m_sampleToggle, options);
 			m_sampleText = EditorGUILayout.TextField("Editor Text", m_sampleText, options);
