@@ -8,12 +8,17 @@ EditorGUIUtility.Load() で内蔵のテクスチャが取得できるけど、
 
 * Menu > Window > Builtin > BuiltinTextureViewer
 
+![サムネイル](https://github.com/wataru-ito/BuiltinViewer/blob/master/Readme_image/builtintextureviewer.jpg)
+
+
 ## BuiltinSkinViewer 
 
 エディタ拡張する時にUnityのシステムウィンドウみたいにカッコよく見せたい。でもどんなGUIStyle使えばいいんだろう？
 という事で作りました。
 
 * Menu > Window > Builtin > BuiltinSkinViewer
+
+![サムネイル](https://github.com/wataru-ito/BuiltinViewer/blob/master/Readme_image/builtinskinviewer.jpg)
 
 
 # Install
