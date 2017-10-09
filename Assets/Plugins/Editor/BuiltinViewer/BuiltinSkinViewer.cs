@@ -168,20 +168,24 @@ namespace BuiltinViewer
 			GUILayout.Label(m_selectedStyle.name, "ProjectBrowserTopBarBg", options);
 
 			GUILayout.Label("Label", m_selectedStyle, options);
-			GUILayout.Box("Box", options);
-			GUILayout.Button("Button", options);
-			m_sampleToggle = GUILayout.Toggle(m_sampleToggle, "Toggle", options);
-			m_sampleText = GUILayout.TextField(m_sampleText, options);
+			GUILayout.Box("Box", m_selectedStyle, options);
+			GUILayout.Button("Button", m_selectedStyle, options);
+			m_sampleToggle = GUILayout.Toggle(m_sampleToggle, "Toggle", m_selectedStyle, options);
+			m_sampleText = GUILayout.TextField(m_sampleText, m_selectedStyle, options);
 
 			EditorGUILayout.Space();
 
 			EditorGUILayout.LabelField("Editor Label", m_selectedStyle, options);
 			EditorGUILayout.LabelField("Editor", "Label", m_selectedStyle, options);
 			m_sampleToggle = EditorGUILayout.Foldout(m_sampleToggle, "Foldout", m_selectedStyle);
-			m_sampleToggle = EditorGUILayout.Toggle("Editor Toggle", m_sampleToggle, options);
-			m_sampleToggle = EditorGUILayout.Toggle(m_sampleToggle, options);
-			m_sampleText = EditorGUILayout.TextField("Editor Text", m_sampleText, options);
-			m_sampleText = EditorGUILayout.TextField(m_sampleText, options);
+			if (EditorGUILayout.DropdownButton(new GUIContent("Dropdown"), FocusType.Passive, m_selectedStyle, options))
+			{
+				Debug.Log("DropDown pressed");
+			}
+			m_sampleToggle = EditorGUILayout.Toggle("Editor Toggle", m_sampleToggle, m_selectedStyle, options);
+			m_sampleToggle = EditorGUILayout.Toggle(m_sampleToggle, m_selectedStyle, options);
+			m_sampleText = EditorGUILayout.TextField("Editor Text", m_sampleText, m_selectedStyle, options);
+			EditorGUILayout.IntField("Int", 0, m_selectedStyle, options);
 		}
 
 
@@ -197,6 +201,8 @@ namespace BuiltinViewer
 				return;
 
 			m_selectedStyle = m_styles[index];
+			
+			GUI.FocusControl(string.Empty);
 			Repaint();
 		}
 
@@ -207,8 +213,9 @@ namespace BuiltinViewer
 			{
 				++index;
 				m_selectedStyle = m_styles[index];
-
 				m_scrollPosition.y = Mathf.Max(m_scrollPosition.y, (index + 1) * kItemHeight - m_scrollRect.height);
+				
+				GUI.FocusControl(string.Empty);
 				Repaint();
 			}
 		}
@@ -221,6 +228,8 @@ namespace BuiltinViewer
 				--index;
 				m_selectedStyle = m_styles[index];
 				m_scrollPosition.y = Mathf.Min(m_scrollPosition.y, index * kItemHeight);
+				
+				GUI.FocusControl(string.Empty);
 				Repaint();
 			}
 		}
