@@ -8,9 +8,16 @@ namespace BuiltinViewer
 	{
 		const float kItemHeight = 16f;
 
+		enum SearchType
+		{
+			StyleName,
+			TextureName,
+		}
+
 		EditorSkin m_skinType;
 		GUISkin m_skin;
 
+		SearchType m_searchType;
 		string m_searchString = string.Empty;
 		GUIStyle[] m_styles;
 		GUIStyle m_selectedStyle;
@@ -101,7 +108,7 @@ namespace BuiltinViewer
 				GUILayout.Space(8f);
 
 				EditorGUI.BeginChangeCheck();
-				m_skinType = (EditorSkin)EditorGUILayout.EnumPopup(m_skinType, "ToolbarPopup", GUILayout.Width(80));
+				m_skinType = (EditorSkin)EditorGUILayout.EnumPopup(m_skinType, EditorStyles.toolbarPopup, GUILayout.Width(80));
 				if (EditorGUI.EndChangeCheck())
 				{
 					m_skin = EditorGUIUtility.GetBuiltinSkin(m_skinType);
@@ -116,8 +123,8 @@ namespace BuiltinViewer
 
 				GUILayout.Space(8f);
 				GUILayout.FlexibleSpace();
-				GUILayout.Label("テクスチャで検索", EditorStyles.miniLabel, GUILayout.Width(80));
-				m_searchString = GUILayout.TextField(m_searchString, "ToolbarSeachTextField", GUILayout.MinWidth(30), GUILayout.MaxWidth(200));
+				m_searchType = (SearchType)EditorGUILayout.EnumPopup(m_searchType, EditorStyles.toolbarPopup, GUILayout.Width(80));
+				m_searchString = GUILayout.TextField(m_searchString, "ToolbarSeachTextField", GUILayout.MinWidth(30), GUILayout.MaxWidth(200)).ToLower();
 				if (GUILayout.Button(GUIContent.none, "ToolbarSeachCancelButton"))
 				{
 					m_searchString = string.Empty;
@@ -247,8 +254,11 @@ namespace BuiltinViewer
 
 		GUIStyle[] GetGUIStyles()
 		{
-			return string.IsNullOrEmpty(m_searchString) ?
-				m_skin.customStyles :
+			if (string.IsNullOrEmpty(m_searchString))
+				return m_skin.customStyles;
+
+			return m_searchType == SearchType.StyleName ?
+				Array.FindAll(m_skin.customStyles, i => i.name.ToLower().Contains(m_searchString)) :
 				Array.FindAll(m_skin.customStyles, i => Contains(i));
 		}
 
@@ -266,7 +276,7 @@ namespace BuiltinViewer
 
 		static bool Contains(GUIStyleState state, string str)
 		{
-			return state.background && state.background.name.Contains(str);
+			return state.background && state.background.name.ToLower().Contains(str);
 		}
 
 		void CreateBuiltinSkinAsset()
