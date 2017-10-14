@@ -198,19 +198,47 @@ namespace BuiltinViewer
 			const float kPaddingL = 8f;
 			const float kPaddingR = 16f;
 			const float kSliderWidth = 64f;
+			const float kButtonWidth = 40f;
 
 			var itemPosition = GUILayoutUtility.GetRect(GUIContent.none, "Toolbar", GUILayout.ExpandWidth(true));
 			GUI.Box(itemPosition, GUIContent.none, "Toolbar");
 
+			var selectedName = m_selected ? m_selected.name : "";
+
 			itemPosition.x = kPaddingL;
-			itemPosition.width = position.width - kSliderWidth - kPaddingR;
-			EditorGUI.LabelField(itemPosition, m_selected ? m_selected.name : "");
+			itemPosition.width = 65;
+			GUI.enabled = !string.IsNullOrEmpty(selectedName);
+			if (GUI.Button(itemPosition, "Copy Name", "toolbarbutton"))
+			{
+				GUIUtility.systemCopyBuffer = selectedName;
+			}
+			GUI.enabled = true;
+
+			GUI.enabled = m_selected is Texture2D;
+			itemPosition.x += itemPosition.width;
+			itemPosition.width = 40;
+			if (GUI.Button(itemPosition, "Export", "toolbarbutton"))
+			{
+				ExportTexture(m_selected as Texture2D);
+			}
+			GUI.enabled = true;
+
+			itemPosition.x += itemPosition.width + 4f;
+			itemPosition.width = position.width - itemPosition.x - kSliderWidth - kPaddingR;
+			EditorGUI.LabelField(itemPosition, selectedName);
 
 			itemPosition.x = position.width - kSliderWidth - kPaddingR;
 			itemPosition.width = kSliderWidth;
 			m_itemSize = GUI.HorizontalSlider(itemPosition, m_itemSize, kItemSizeMin, kItemSizeMax);
 		}
 
+		void ExportTexture(Texture2D texture)
+		{
+			var path = EditorUtility.SaveFilePanel("Export Texture", Application.dataPath, texture.name, ".png");
+			if (string.IsNullOrEmpty(path)) return;
+
+			System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
+		}
 
 		//------------------------------------------------------
 		// events
