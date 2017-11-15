@@ -72,16 +72,6 @@ namespace BuiltinViewer
 			DrawSearchBar();
 			DrawTextureList();
 			DrawFooter();
-
-			switch (Event.current.type)
-			{
-				case EventType.MouseDown:
-					if (m_scrollRect.Contains(Event.current.mousePosition))
-					{
-						OnClicked(Event.current);
-					}
-					break;
-			}
 		}
 
 
@@ -91,21 +81,20 @@ namespace BuiltinViewer
 
 		void DrawSearchBar()
 		{
-			GUI.Box(new Rect(0, 0, position.width, 16), GUIContent.none, "Toolbar");
+			GUI.Box(new Rect(0, 0, position.width, 16), GUIContent.none, EditorStyles.toolbar);
 			using (new EditorGUILayout.HorizontalScope())
 			{
 				GUILayout.Space(8f);
 
-				m_drawType = (DrawType)EditorGUILayout.EnumPopup(m_drawType, "ToolbarPopup", GUILayout.Width(80));
+				m_drawType = (DrawType)EditorGUILayout.EnumPopup(m_drawType, EditorStyles.toolbarPopup, GUILayout.Width(80));
 
 				GUILayout.Space(8f);
 				GUILayout.FlexibleSpace();
 
-				m_searchString = GUILayout.TextField(m_searchString, "ToolbarSeachTextField", GUILayout.MinWidth(80), GUILayout.MaxWidth(300));
+				m_searchString = GUILayout.TextField(m_searchString, "ToolbarSeachTextField", GUILayout.MinWidth(80), GUILayout.MaxWidth(300)).ToLower();
 				if (GUILayout.Button(GUIContent.none, "ToolbarSeachCancelButton"))
 				{
 					m_searchString = string.Empty;
-					GUI.FocusControl(null);
 				}
 
 				GUILayout.Space(8f);
@@ -124,91 +113,138 @@ namespace BuiltinViewer
 			m_padding.x = (viewRectWidth - m_itemSize * m_columnNum) / (m_columnNum + 1);
 			m_padding.y = kPaddingMin;
 
-			using (var scroll = new GUI.ScrollViewScope(m_scrollRect, m_scrollPosition,
-				new Rect(0, 0, viewRectWidth, m_rawNum * (m_itemSize + m_padding.y) + m_padding.y)))
+			var viewRect = new Rect(0, 0, viewRectWidth, m_rawNum * (m_itemSize + m_padding.y) + m_padding.y);
+			using (var scroll = new GUI.ScrollViewScope(m_scrollRect, m_scrollPosition, viewRect))
 			{
-				var top = m_scrollRect.y + m_scrollPosition.y;
-				var bottom = top + m_scrollRect.height;
+				var displayRect = new Rect(0, m_scrollPosition.y, viewRect.width, viewRect.height);
 				var y = kPaddingMin;
 				for (int i = 0; i < m_rawNum; ++i, y += m_itemSize + kPaddingMin)
 				{
-					if (y >= bottom || y + m_itemSize <= top) continue;
-
-					DrawColumn(y, m_displayed, i * m_columnNum, m_columnNum, m_padding.x);
+					DrawColumn(ref displayRect, y, m_displayed, i * m_columnNum, m_columnNum, m_padding.x);
 				}
 
 				m_scrollPosition = scroll.scrollPosition;
 			}
+
+			var ev = Event.current;
+			switch (ev.type)
+			{
+				case EventType.KeyDown:
+					switch (ev.keyCode)
+					{
+						case KeyCode.RightArrow:
+							MoveSelect(+1);
+							ev.Use();
+							break;
+						case KeyCode.LeftArrow:
+							MoveSelect(-1);
+							ev.Use();
+							break;
+						case KeyCode.DownArrow:
+							MoveSelect(m_columnNum);
+							ev.Use();
+							break;
+						case KeyCode.UpArrow:
+							MoveSelect(-m_columnNum);
+							ev.Use();
+							break;
+					}
+					break;
+			}
+		}
+
+		void MoveSelect(int offset)
+		{
+			var index = Array.IndexOf(m_displayed, m_selected);
+			if (index < 0) return;
+
+			m_selected = m_displayed[Mathf.Clamp(index + offset, 0, m_displayed.Length - 1)];
 		}
 
 		Texture[] GetTargetTextures()
 		{
 			return string.IsNullOrEmpty(m_searchString) ?
 				m_textures :
-				Array.FindAll(m_textures, i => i.name.Contains(m_searchString));
+				Array.FindAll(m_textures, i => i.name.ToLower().Contains(m_searchString));
 		}
 
-		void DrawColumn(float y, Texture[] textures, int textureIndex, int count, float itemPadding)
+		void DrawColumn(ref Rect displayRect, float y, Texture[] textures, int textureIndex, int count, float itemPadding)
 		{
 			var itemPosition = new Rect(itemPadding, y, m_itemSize, m_itemSize);
 
 			count = Mathf.Min(count, textures.Length - 1 - textureIndex);
 			for (int i = 0; i < count; ++i)
 			{
-				DrawTexture(itemPosition, textures[textureIndex + i]);
+				DrawTexture(ref displayRect, itemPosition, textures[textureIndex + i]);
 				itemPosition.x += itemPosition.width + itemPadding;
 			}
 		}
 
-		void DrawTexture(Rect itemPosition, Texture texture)
+		void DrawTexture(ref Rect displayRect, Rect itemPosition, Texture texture)
 		{
-			// ProjectBrowserIconDropShadow の OnFocus が選択時青いテクスチャが設定されている
-			// しかしどうすれば OnFocus 状態にできるのか？
-			// わからないからとりあえず枠を描画する...orz
-			if (texture == m_selected)
+			var ev = Event.current;
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			switch (ev.GetTypeForControl(controlID))
 			{
-				var r = itemPosition;
-				r.x -= kPaddingMin * 0.5f;
-				r.y -= kPaddingMin * 0.5f;
-				r.width += kPaddingMin;
-				r.height += kPaddingMin;
-				GUI.Box(r, GUIContent.none, "ProjectBrowserTextureIconDropShadow");
-			}
+				case EventType.Repaint:
+					if (!itemPosition.Overlaps(displayRect)) break;
 
-			GUI.SetNextControlName(texture.name);
-			switch (m_drawType)
-			{
-				case DrawType.RGB:
-					//GUI.Box(itemPosition, texture, "ProjectBrowserIconDropShadow"); 選択時の青表示これにしたい...
-					GUI.DrawTexture(itemPosition, texture);
+					if (texture == m_selected)
+					{
+						var style = GUI.skin.FindStyle("ProjectBrowserTextureIconDropShadow");
+						var p = itemPosition;
+						p.x -= 6f;
+						p.y -= 6f;
+						p.width += 12f;
+						p.height += 12f;
+						style.Draw(p, GUIContent.none, isHover: false, isActive: true, on: true, hasKeyboardFocus: false);
+					}
+
+					switch (m_drawType)
+					{
+						case DrawType.RGB:
+							GUI.DrawTexture(itemPosition, texture);
+							break;
+
+						case DrawType.Alpha:
+							EditorGUI.DrawTextureAlpha(itemPosition, texture);
+							break;
+
+						case DrawType.Transparent:
+							EditorGUI.DrawTextureTransparent(itemPosition, texture);
+							break;
+					}
 					break;
 
-				case DrawType.Alpha:
-					EditorGUI.DrawTextureAlpha(itemPosition, texture);
-					break;
-
-				case DrawType.Transparent:
-					EditorGUI.DrawTextureTransparent(itemPosition, texture);
+				case EventType.MouseDown:
+					if (ev.button == 0 && itemPosition.Contains(ev.mousePosition))
+					{
+						m_selected = texture;
+						Selection.activeObject = m_selected;
+						ev.Use();
+					}
 					break;
 			}
 		}
+
+		GUIContent kLabelCopyName = new GUIContent("Copy Name", "選択したテクスチャ名をコピーする");
+		GUIContent kLabelExport = new GUIContent("Export", "選択したテクスチャを指定フォルダに出力");
 
 		void DrawFooter()
 		{
 			const float kPaddingL = 8f;
 			const float kPaddingR = 16f;
 			const float kSliderWidth = 64f;
-			const float kButtonWidth = 40f;
 
-			var itemPosition = GUILayoutUtility.GetRect(GUIContent.none, "Toolbar", GUILayout.ExpandWidth(true));
-			GUI.Box(itemPosition, GUIContent.none, "Toolbar");
+			var itemPosition = GUILayoutUtility.GetRect(GUIContent.none, EditorStyles.toolbar, GUILayout.ExpandWidth(true));
+			GUI.Box(itemPosition, GUIContent.none, EditorStyles.toolbar);
 
 			var selectedName = m_selected ? m_selected.name : "";
 
 			itemPosition.x = kPaddingL;
 			itemPosition.width = 65;
 			GUI.enabled = !string.IsNullOrEmpty(selectedName);
-			if (GUI.Button(itemPosition, "Copy Name", "toolbarbutton"))
+			if (GUI.Button(itemPosition, kLabelCopyName, EditorStyles.toolbarButton))
 			{
 				GUIUtility.systemCopyBuffer = selectedName;
 			}
@@ -217,7 +253,7 @@ namespace BuiltinViewer
 			GUI.enabled = m_selected is Texture2D;
 			itemPosition.x += itemPosition.width;
 			itemPosition.width = 40;
-			if (GUI.Button(itemPosition, "Export", "toolbarbutton"))
+			if (GUI.Button(itemPosition, kLabelExport, EditorStyles.toolbarButton))
 			{
 				ExportTexture(m_selected as Texture2D);
 			}
@@ -238,39 +274,6 @@ namespace BuiltinViewer
 			if (string.IsNullOrEmpty(path)) return;
 
 			System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
-		}
-
-		//------------------------------------------------------
-		// events
-		//------------------------------------------------------
-
-		void OnClicked(Event ev)
-		{
-			// 間の空白領域は選択と判定しない
-
-			var y = (ev.mousePosition.y - m_scrollRect.y + m_scrollPosition.y);
-			var blockHeight = m_itemSize + m_padding.y;
-			var raw = Mathf.FloorToInt(y / blockHeight);
-			if (y - blockHeight * raw <= m_padding.y)
-				return;
-
-			var x = (ev.mousePosition.x - m_scrollRect.x + m_scrollPosition.x);
-			var blockWidth = m_itemSize + m_padding.x;
-			var column = Mathf.FloorToInt(x / blockWidth);
-			if (x - blockWidth * column <= m_padding.x)
-				return;
-
-			if (raw >= m_rawNum || column >= m_columnNum)
-				return;
-
-			m_selected = m_displayed[raw * m_columnNum + column];
-			Selection.activeObject = m_selected;
-
-			// どうすれば GUIStyle を OnFocused にできるんだ...
-			//GUI.FocusControl(m_selected.name);
-			//EditorGUI.FocusTextInControl(m_selected.name);
-
-			Repaint();
 		}
 	}
 }
