@@ -14,18 +14,31 @@ namespace BuiltinViewer
 			TextureName,
 		}
 
+		
 		EditorSkin m_skinType;
-		GUISkin m_skin;
-
 		SearchType m_searchType;
-		string m_searchString = string.Empty;
+		string m_searchString;
+		GUISkin m_skin;
 		GUIStyle[] m_styles;
+
 		GUIStyle m_selectedStyle;
 		Vector2 m_scrollPosition;
-		Rect m_scrollRect;
+		GUIStyle m_labelStyle;
+		GUIStyle m_sampleTitleStyle;
 
+		const float kSampleWidthMin = 150;
+		const float kSampleWidthMax = 300;
+		float m_sampleWidth = 150f;
+		float m_sampleEditBeganX;
+		float m_sampleEditBeganValue;
 		bool m_sampleToggle;
-		string m_sampleText = string.Empty;
+		string m_sampleText = "Text";
+		int m_sampleValue;
+
+		bool m_sampleHover = true;
+		bool m_sampleActive;
+		bool m_sampleOn;
+		bool m_sampleKeyboard;
 
 
 		//------------------------------------------------------
@@ -49,7 +62,15 @@ namespace BuiltinViewer
 			minSize = new Vector2(250, 150);
 
 			m_skin = EditorGUIUtility.GetBuiltinSkin(m_skinType);
+			m_searchString = string.Empty;
+			m_styles = GetGUIStyles();
+
+			var skin = EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector);
+			m_labelStyle = skin.FindStyle("PR Label");
+			m_sampleTitleStyle = skin.FindStyle("ProjectBrowserTopBarBg");
 		}
+
+		MouseCursor m_corsor;
 
 		void OnGUI()
 		{
@@ -59,51 +80,26 @@ namespace BuiltinViewer
 			{
 				using (new EditorGUILayout.VerticalScope())
 				{
-					DrawGUIStyles();
+					DrawStylelist();
 				}
 
-				if (m_selectedStyle != null)
+				using (new EditorGUILayout.VerticalScope(GUILayout.Width(m_sampleWidth)))
 				{
-					using (new EditorGUILayout.VerticalScope(GUILayout.Width(150)))
-					{
-						GUILayout.Space(2f);
-						DrawSample();
-					}
+					DrawSample();
 				}
-			}
-
-			switch (Event.current.type)
-			{
-				case EventType.MouseDown:
-					if (m_scrollRect.Contains(Event.current.mousePosition))
-					{
-						OnClicked(Event.current);
-					}
-					break;
-
-				case EventType.keyDown:
-					switch (Event.current.keyCode)
-					{
-						case KeyCode.UpArrow:
-							PrevStyle();
-							break;
-						case KeyCode.DownArrow:
-							NextStyle();
-							break;
-					}
-					break;
 			}
 		}
 
 
 		//------------------------------------------------------
-		// gui
+		// toolbar
 		//------------------------------------------------------
 
 		void DrawToolBar()
 		{
-			GUI.Box(new Rect(0, 0, position.width, 16), GUIContent.none, "Toolbar");
+			GUI.Box(new Rect(0, 0, position.width, 16), GUIContent.none, EditorStyles.toolbar);
 			using (new EditorGUILayout.HorizontalScope())
+			using (var check = new EditorGUI.ChangeCheckScope())
 			{
 				GUILayout.Space(8f);
 
@@ -116,7 +112,7 @@ namespace BuiltinViewer
 
 				GUILayout.Space(4f);
 
-				if (GUILayout.Button("出力", "toolbarbutton", GUILayout.Width(30)))
+				if (GUILayout.Button("出力", EditorStyles.toolbarButton, GUILayout.Width(30)))
 				{
 					CreateBuiltinSkinAsset();
 				}
@@ -132,124 +128,12 @@ namespace BuiltinViewer
 				}
 
 				GUILayout.Space(8f);
-			}
-		}
 
-		void DrawGUIStyles()
-		{
-			m_scrollRect = GUILayoutUtility.GetRect(GUIContent.none, "ScrollView", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-			m_styles = GetGUIStyles();
-
-			var viewRect = new Rect(0, 0, m_scrollRect.width - 16f, m_styles.Length * kItemHeight);
-			using (var scroll = new GUI.ScrollViewScope(m_scrollRect, m_scrollPosition, viewRect))
-			{
-				var itemPosition = viewRect;
-				itemPosition.height = kItemHeight;
-
-				for (int i = 0; i < m_styles.Length; ++i)
+				if (check.changed)
 				{
-					DrawGUIStyle(itemPosition, m_styles[i]);
-					itemPosition.y += itemPosition.height;
+					m_styles = GetGUIStyles();
 				}
-
-				m_scrollPosition = scroll.scrollPosition;
 			}
-		}
-
-		void DrawGUIStyle(Rect itemPosition, GUIStyle style)
-		{
-			// 使われる GUIStyle を onActive にする方法がわからないので真似る
-			// > 今はこれが精いっぱい...
-			if (m_selectedStyle == style)
-			{
-				var selected = EditorGUIUtility.LoadRequired("selected") as Texture;
-				GUI.DrawTexture(itemPosition, selected);
-			}
-
-			EditorGUI.LabelField(itemPosition, style.name);
-		}
-
-		void DrawSample()
-		{
-			var options = new GUILayoutOption[1] { GUILayout.ExpandWidth(true) };
-			GUILayout.Label(m_selectedStyle.name, "ProjectBrowserTopBarBg", options);
-
-			GUILayout.Label("Label", m_selectedStyle, options);
-			GUILayout.Box("Box", m_selectedStyle, options);
-			GUILayout.Button("Button", m_selectedStyle, options);
-			m_sampleToggle = GUILayout.Toggle(m_sampleToggle, "Toggle", m_selectedStyle, options);
-			m_sampleText = GUILayout.TextField(m_sampleText, m_selectedStyle, options);
-
-			EditorGUILayout.Space();
-
-			EditorGUILayout.LabelField("Editor Label", m_selectedStyle, options);
-			EditorGUILayout.LabelField("Editor", "Label", m_selectedStyle, options);
-			m_sampleToggle = EditorGUILayout.Foldout(m_sampleToggle, "Foldout", m_selectedStyle);
-			if (EditorGUILayout.DropdownButton(new GUIContent("Dropdown"), FocusType.Passive, m_selectedStyle, options))
-			{
-				Debug.Log("DropDown pressed");
-			}
-			m_sampleToggle = EditorGUILayout.Toggle("Editor Toggle", m_sampleToggle, m_selectedStyle, options);
-			m_sampleToggle = EditorGUILayout.Toggle(m_sampleToggle, m_selectedStyle, options);
-			m_sampleText = EditorGUILayout.TextField("Editor Text", m_sampleText, m_selectedStyle, options);
-			EditorGUILayout.IntField("Int", 0, m_selectedStyle, options);
-		}
-
-
-		//------------------------------------------------------
-		// events
-		//------------------------------------------------------
-
-		void OnClicked(Event ev)
-		{
-			var y = (ev.mousePosition.y - m_scrollRect.y + m_scrollPosition.y);
-			var index = Mathf.FloorToInt(y / kItemHeight);
-			if (index >= m_styles.Length)
-				return;
-
-			m_selectedStyle = m_styles[index];
-			
-			GUI.FocusControl(string.Empty);
-			Repaint();
-		}
-
-		void NextStyle()
-		{
-			var index = Array.IndexOf(m_styles, m_selectedStyle);
-			if (index >= 0 && index + 1 < m_styles.Length)
-			{
-				++index;
-				m_selectedStyle = m_styles[index];
-				m_scrollPosition.y = Mathf.Max(m_scrollPosition.y, (index + 1) * kItemHeight - m_scrollRect.height);
-				
-				GUI.FocusControl(string.Empty);
-				Repaint();
-			}
-		}
-
-		void PrevStyle()
-		{
-			var index = Array.IndexOf(m_styles, m_selectedStyle);
-			if (index > 0)
-			{
-				--index;
-				m_selectedStyle = m_styles[index];
-				m_scrollPosition.y = Mathf.Min(m_scrollPosition.y, index * kItemHeight);
-				
-				GUI.FocusControl(string.Empty);
-				Repaint();
-			}
-		}
-
-		
-		//------------------------------------------------------
-		// skin
-		//------------------------------------------------------
-
-		void SetSkinType(EditorSkin skinType)
-		{
-			m_skinType = skinType;
-			m_skin = EditorGUIUtility.GetBuiltinSkin(m_skinType);
 		}
 
 		GUIStyle[] GetGUIStyles()
@@ -264,19 +148,19 @@ namespace BuiltinViewer
 
 		bool Contains(GUIStyle style)
 		{
-			return Contains(style.active, m_searchString) ||
-				Contains(style.focused, m_searchString) ||
-				Contains(style.hover, m_searchString) ||
-				Contains(style.normal, m_searchString) ||
-				Contains(style.onActive, m_searchString) ||
-				Contains(style.onFocused, m_searchString) ||
-				Contains(style.onHover, m_searchString) ||
-				Contains(style.onNormal, m_searchString);
+			return Contains(style.active) ||
+				Contains(style.focused) ||
+				Contains(style.hover) ||
+				Contains(style.normal) ||
+				Contains(style.onActive) ||
+				Contains(style.onFocused) ||
+				Contains(style.onHover) ||
+				Contains(style.onNormal);
 		}
 
-		static bool Contains(GUIStyleState state, string str)
+		bool Contains(GUIStyleState state)
 		{
-			return state.background && state.background.name.ToLower().Contains(str);
+			return state.background && state.background.name.ToLower().Contains(m_searchString);
 		}
 
 		void CreateBuiltinSkinAsset()
@@ -291,6 +175,241 @@ namespace BuiltinViewer
 			EditorUtility.DisplayDialog("GUISkin出力",
 				string.Format("GUISkinを出力しました\n\n{0}", assetPath),
 				"OK");
+		}
+
+
+		//------------------------------------------------------
+		// stylelist
+		//------------------------------------------------------
+
+		void DrawStylelist()
+		{
+			var position = GUILayoutUtility.GetRect(GUIContent.none, "ScrollView", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+
+			var viewRect = new Rect(0, 0, position.width - 16, m_styles.Length * kItemHeight);
+			using (var scroll = new GUI.ScrollViewScope(position, m_scrollPosition, viewRect))
+			{
+				var itemPosition = new Rect(0, 0, viewRect.width, kItemHeight);
+				foreach (var style in m_styles)
+				{
+					GUIStyleField(itemPosition, style);
+					itemPosition.y += itemPosition.height;
+				}
+
+				m_scrollPosition = scroll.scrollPosition;
+			}
+
+			var ev = Event.current;
+			switch (ev.type)
+			{
+				case EventType.keyDown:
+					switch (ev.keyCode)
+					{
+						case KeyCode.UpArrow:
+							if (PrevStyle())
+							{
+								ev.Use();
+							}
+							break;
+						case KeyCode.DownArrow:
+							if (NextStyle(position.height))
+							{
+								ev.Use();
+							}
+							break;
+					}
+					break;
+			}
+		}
+
+		void GUIStyleField(Rect position, GUIStyle style)
+		{
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var ev = Event.current;
+			switch (ev.GetTypeForControl(controlID))
+			{
+				case EventType.Repaint:
+					m_labelStyle.Draw(position, new GUIContent(style.name), controlID, m_selectedStyle == style);
+					break;
+
+				case EventType.MouseDown:
+					if (position.Contains(ev.mousePosition) && ev.button == 0)
+					{
+						m_selectedStyle = style;
+						ev.Use();
+					}
+					break;
+			}
+		}
+
+		bool NextStyle(float displayHeight)
+		{
+			var index = Array.IndexOf(m_styles, m_selectedStyle);
+			if (index < 0 || index >= m_styles.Length - 1)
+				return false;
+
+			++index;
+			m_selectedStyle = m_styles[index];
+			m_scrollPosition.y = Mathf.Max(m_scrollPosition.y, GetItemPositionY(index + 1) - displayHeight);
+
+			return true;
+		}
+
+		bool PrevStyle()
+		{
+			var index = Array.IndexOf(m_styles, m_selectedStyle);
+			if (index <= 0) return false;
+			
+			--index;
+			m_selectedStyle = m_styles[index];
+			m_scrollPosition.y = Mathf.Min(m_scrollPosition.y, GetItemPositionY(index));
+
+			return true;
+		}
+
+		static float GetItemPositionY(int index)
+		{
+			return index * kItemHeight;
+		}
+
+
+		//------------------------------------------------------
+		// sample
+		//------------------------------------------------------
+
+		void DrawSample()
+		{
+			var position = GUILayoutUtility.GetRect(0, 0, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+			OperateSampleFieldWidth(ref position);
+
+			var itemPosition = position;
+			itemPosition.height = 16f;
+
+			DrawSampleHeader(ref itemPosition);
+			
+			if (m_selectedStyle == null)
+				return;
+			
+			var labelWidth = EditorGUIUtility.labelWidth;
+			EditorGUIUtility.labelWidth = position.width * 0.5f;
+
+			DrawSample(ref itemPosition); 
+			itemPosition.y += itemPosition.height;
+			
+			DrawGUISample(ref itemPosition); 			
+			itemPosition.y += itemPosition.height;
+			
+			DrawEditorGUISample(ref itemPosition);
+			itemPosition.y += itemPosition.height;
+			
+			EditorGUIUtility.labelWidth = labelWidth;
+		}
+
+		void OperateSampleFieldWidth(ref Rect sampleRect)
+		{
+			var slideRect = new Rect(sampleRect.x, sampleRect.yMin, 3f, sampleRect.height);
+			EditorGUIUtility.AddCursorRect(slideRect, MouseCursor.ResizeHorizontal);
+
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var ev = Event.current;
+			switch (ev.GetTypeForControl(controlID))
+			{
+				case EventType.MouseDown:
+					if (slideRect.Contains(ev.mousePosition) && GUIUtility.hotControl == 0)
+					{
+						GUIUtility.hotControl = controlID;
+						m_sampleEditBeganValue = m_sampleWidth;
+						m_sampleEditBeganX = ev.mousePosition.x;
+						ev.Use();
+					}
+					break;
+
+				case EventType.MouseDrag:
+					if (GUIUtility.hotControl == controlID)
+					{
+						m_sampleWidth = Mathf.Clamp(m_sampleEditBeganValue + (m_sampleEditBeganX - ev.mousePosition.x), kSampleWidthMin, kSampleWidthMax);
+						GUI.changed = true;
+						ev.Use();
+					}
+					break;
+
+				case EventType.MouseUp:
+					if (GUIUtility.hotControl == controlID)
+					{
+						GUIUtility.hotControl = 0;
+						ev.Use();
+					}
+					break;
+			}
+		}
+
+		void DrawSampleHeader(ref Rect position)
+		{
+			EditorGUI.LabelField(position, new GUIContent(m_selectedStyle == null ? "---" : m_selectedStyle.name), m_sampleTitleStyle);
+			position.y += position.height;
+
+			var btnRect = position;
+			btnRect.width *= 0.25f;
+			m_sampleHover = GUI.Toggle(btnRect, m_sampleHover, "Hover", EditorStyles.toolbarButton); 
+			btnRect.x += btnRect.width;
+			m_sampleActive = GUI.Toggle(btnRect, m_sampleActive, "Active", EditorStyles.toolbarButton); 
+			btnRect.x += btnRect.width;
+			m_sampleOn = GUI.Toggle(btnRect, m_sampleOn, "On", EditorStyles.toolbarButton); 
+			btnRect.x += btnRect.width;
+			m_sampleKeyboard = GUI.Toggle(btnRect, m_sampleKeyboard, "Keyboard", EditorStyles.toolbarButton); 
+			btnRect.x += btnRect.width;
+	
+			position.y += position.height;
+		}
+
+		void DrawSample(ref Rect position)
+		{
+			switch (Event.current.type)
+			{
+				case EventType.Repaint:
+					var itemPosition = position;
+					itemPosition.y += 8f;
+					itemPosition.x += 4f;
+					itemPosition.width -= 8f;
+					m_selectedStyle.Draw(itemPosition, new GUIContent("Sample"), m_sampleHover, m_sampleActive, m_sampleOn, m_sampleKeyboard);
+					break;
+			}
+
+			position.y += position.height;
+		}
+
+		void DrawGUISample(ref Rect position)
+		{
+			EditorGUI.LabelField(position, new GUIContent("GUI"), m_sampleTitleStyle);
+			position.y += position.height;
+			GUI.Label(position, "Label", m_selectedStyle);
+			position.y += position.height;
+			GUI.Box(position, "Box", m_selectedStyle);
+			position.y += position.height;
+			m_sampleToggle = GUI.Toggle(position, m_sampleToggle, "Toggle", m_selectedStyle);
+			position.y += position.height;
+			m_sampleText = GUI.TextField(position, m_sampleText, m_selectedStyle);
+			position.y += position.height;
+		}
+
+		void DrawEditorGUISample(ref Rect position)
+		{
+			EditorGUI.LabelField(position, new GUIContent("EditorGUI"), m_sampleTitleStyle);
+			position.y += position.height;
+			EditorGUI.LabelField(position, "Label", m_selectedStyle);
+			position.y += position.height;
+			EditorGUI.LabelField(position, "Label", "Label", m_selectedStyle);
+			position.y += position.height;
+			m_sampleValue = EditorGUI.Popup(position, "Popup", m_sampleValue, new string[] { "Sample1", "Sample2", }, m_selectedStyle);
+			position.y += position.height;
+			m_sampleToggle = EditorGUI.Foldout(position, m_sampleToggle, "Foldout", m_selectedStyle);
+			position.y += position.height;
+			m_sampleToggle = EditorGUI.Toggle(position, "Toggle", m_sampleToggle, m_selectedStyle);
+			position.y += position.height;
+			m_sampleText = EditorGUI.TextField(position, "Text", m_sampleText, m_selectedStyle);
+			position.y += position.height;
+			m_sampleValue = EditorGUI.IntField(position, "Int", m_sampleValue);
+			position.y += position.height;
 		}
 	}
 }
