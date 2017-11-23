@@ -8,6 +8,8 @@ namespace BuiltinViewer
 	{
 		const float kItemHeight = 16f;
 
+		readonly GUIContent kExportContent = new GUIContent("出力", "現在のGUISkinをアセットとして出力します");
+
 		enum SearchType
 		{
 			StyleName,
@@ -23,6 +25,8 @@ namespace BuiltinViewer
 
 		GUIStyle m_selectedStyle;
 		Vector2 m_scrollPosition;
+
+		bool m_styleInitialized;
 		GUIStyle m_labelStyle;
 		GUIStyle m_sampleTitleStyle;
 
@@ -63,17 +67,16 @@ namespace BuiltinViewer
 
 			m_skin = EditorGUIUtility.GetBuiltinSkin(m_skinType);
 			m_searchString = string.Empty;
-			m_styles = GetGUIStyles();
-
-			var skin = EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector);
-			m_labelStyle = skin.FindStyle("PR Label");
-			m_sampleTitleStyle = skin.FindStyle("ProjectBrowserTopBarBg");
+			m_styles = GetGUIStyles();			
 		}
-
-		MouseCursor m_corsor;
 
 		void OnGUI()
 		{
+			if (!m_styleInitialized)
+			{
+				InitializeStyles();
+			}
+
 			DrawToolBar();
 
 			using (new EditorGUILayout.HorizontalScope())
@@ -88,6 +91,20 @@ namespace BuiltinViewer
 					DrawSample();
 				}
 			}
+		}
+
+		void InitializeStyles()
+		{
+			m_labelStyle = GUI.skin.FindStyle("PR Label");
+			m_sampleTitleStyle = GUI.skin.FindStyle("ProjectBrowserTopBarBg");
+			
+			if (m_labelStyle == null || m_sampleTitleStyle == null)
+			{
+				EditorGUILayout.HelpBox("BuiltinStyle not found.", MessageType.Error);
+				return;
+			}
+
+			m_styleInitialized = true;
 		}
 
 
@@ -112,7 +129,7 @@ namespace BuiltinViewer
 
 				GUILayout.Space(4f);
 
-				if (GUILayout.Button("出力", EditorStyles.toolbarButton, GUILayout.Width(30)))
+				if (GUILayout.Button(kExportContent, EditorStyles.toolbarButton, GUILayout.Width(30)))
 				{
 					CreateBuiltinSkinAsset();
 				}
@@ -187,7 +204,7 @@ namespace BuiltinViewer
 			var position = GUILayoutUtility.GetRect(GUIContent.none, "ScrollView", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
 
 			var viewRect = new Rect(0, 0, position.width - 16, m_styles.Length * kItemHeight);
-			using (var scroll = new GUI.ScrollViewScope(position, m_scrollPosition, viewRect))
+			using (var scroll = new GUI.ScrollViewScope(position, m_scrollPosition, viewRect, false, true))
 			{
 				var itemPosition = new Rect(0, 0, viewRect.width, kItemHeight);
 				foreach (var style in m_styles)
@@ -244,10 +261,11 @@ namespace BuiltinViewer
 
 		bool NextStyle(float displayHeight)
 		{
-			var index = Array.IndexOf(m_styles, m_selectedStyle);
-			if (index < 0 || index >= m_styles.Length - 1)
-				return false;
+			if (m_styles.Length == 0) return false;
 
+			var index = Array.IndexOf(m_styles, m_selectedStyle);
+			if (index >= m_styles.Length - 1) return false;
+			
 			++index;
 			m_selectedStyle = m_styles[index];
 			m_scrollPosition.y = Mathf.Max(m_scrollPosition.y, GetItemPositionY(index + 1) - displayHeight);
@@ -257,6 +275,8 @@ namespace BuiltinViewer
 
 		bool PrevStyle()
 		{
+			if (m_styles.Length == 0) return false;
+			
 			var index = Array.IndexOf(m_styles, m_selectedStyle);
 			if (index <= 0) return false;
 			
