@@ -10,14 +10,22 @@ namespace BuiltinViewer
 
 		readonly GUIContent kExportContent = new GUIContent("出力", "現在のGUISkinをアセットとして出力します");
 
+		enum SkinType
+		{
+			Game,
+			Inspector,
+			Scene,
+			Current, // ProSkinは取得できないのでGUI.skinを参照する
+		}
+
 		enum SearchType
 		{
 			StyleName,
 			TextureName,
 		}
 
-		
-		EditorSkin m_skinType;
+
+		SkinType m_skinType;
 		SearchType m_searchType;
 		string m_searchString;
 		GUISkin m_skin;
@@ -65,9 +73,7 @@ namespace BuiltinViewer
 			titleContent = new GUIContent("Skin見る造");
 			minSize = new Vector2(250, 150);
 
-			m_skin = EditorGUIUtility.GetBuiltinSkin(m_skinType);
-			m_searchString = string.Empty;
-			m_styles = GetGUIStyles();			
+			m_searchString = string.Empty;	
 		}
 
 		void OnGUI()
@@ -93,8 +99,16 @@ namespace BuiltinViewer
 			}
 		}
 
+
+		//------------------------------------------------------
+		// skin/style
+		//------------------------------------------------------
+
 		void InitializeStyles()
 		{
+			m_skin = GetSkin(m_skinType);
+			m_styles = GetGUIStyles();
+
 			m_labelStyle = GUI.skin.FindStyle("PR Label");
 			m_sampleTitleStyle = GUI.skin.FindStyle("ProjectBrowserTopBarBg");
 			
@@ -105,6 +119,20 @@ namespace BuiltinViewer
 			}
 
 			m_styleInitialized = true;
+		}
+
+		static GUISkin GetSkin(SkinType skinType)
+		{
+			switch (skinType)
+			{
+				case SkinType.Game: return EditorGUIUtility.GetBuiltinSkin(EditorSkin.Game);
+				case SkinType.Inspector: return EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector);
+				case SkinType.Scene: return EditorGUIUtility.GetBuiltinSkin(EditorSkin.Scene);
+				case SkinType.Current: return GUI.skin;
+				default:
+					Debug.LogWarningFormat("Unknown skinType[{0}]", skinType);
+					goto case SkinType.Game;
+			}
 		}
 
 
@@ -121,10 +149,10 @@ namespace BuiltinViewer
 				GUILayout.Space(8f);
 
 				EditorGUI.BeginChangeCheck();
-				m_skinType = (EditorSkin)EditorGUILayout.EnumPopup(m_skinType, EditorStyles.toolbarPopup, GUILayout.Width(80));
+				m_skinType = (SkinType)EditorGUILayout.EnumPopup(m_skinType, EditorStyles.toolbarPopup, GUILayout.Width(80));
 				if (EditorGUI.EndChangeCheck())
 				{
-					m_skin = EditorGUIUtility.GetBuiltinSkin(m_skinType);
+					m_skin = GetSkin(m_skinType);
 				}
 
 				GUILayout.Space(4f);
