@@ -302,7 +302,11 @@ namespace BuiltinViewer
 					break;
 
 				case EventType.ContextClick:
-					ShowStyleContextMenu(style);
+					if (position.Contains(ev.mousePosition))
+					{
+						ShowStyleContextMenu(style);
+						ev.Use();
+					}
 					break;
 			}
 		}

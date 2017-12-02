@@ -15,9 +15,9 @@ namespace BuiltinViewer
 			Alpha,
 		}
 
+		const float kToolbarPadding = 8f;
 		const float kItemSizeMin = 64f;
 		const float kItemSizeMax = 128f;
-		const float kScrollBarWidth = 16f;
 		const float kPaddingMin = 16f;
 
 		Texture[] m_textures;
@@ -69,22 +69,21 @@ namespace BuiltinViewer
 
 		void OnGUI()
 		{
-			DrawSearchBar();
+			DrawToolbar();
 			DrawTextureList();
 			DrawFooter();
 		}
 
 
 		//------------------------------------------------------
-		// gui
+		// toolbar
 		//------------------------------------------------------
 
-		void DrawSearchBar()
+		void DrawToolbar()
 		{
-			GUI.Box(new Rect(0, 0, position.width, 16), GUIContent.none, EditorStyles.toolbar);
-			using (new EditorGUILayout.HorizontalScope())
+			using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 			{
-				GUILayout.Space(8f);
+				GUILayout.Space(kToolbarPadding);
 
 				m_drawType = (DrawType)EditorGUILayout.EnumPopup(m_drawType, EditorStyles.toolbarPopup, GUILayout.Width(80));
 
@@ -97,16 +96,21 @@ namespace BuiltinViewer
 					m_searchString = string.Empty;
 				}
 
-				GUILayout.Space(8f);
+				GUILayout.Space(kToolbarPadding);
 			}
 		}
 
+
+		//------------------------------------------------------
+		// texture list
+		//------------------------------------------------------
+		
 		void DrawTextureList()
 		{
 			m_scrollRect = GUILayoutUtility.GetRect(GUIContent.none, "ScrollView", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
 
 			m_displayed = GetTargetTextures();
-			var viewRectWidth = m_scrollRect.width - kScrollBarWidth;
+			var viewRectWidth = m_scrollRect.width - GUI.skin.verticalScrollbar.fixedWidth;
 
 			m_columnNum = Mathf.FloorToInt((viewRectWidth - kPaddingMin) / (m_itemSize + kPaddingMin));
 			m_rawNum = m_displayed.Length / m_columnNum + (m_displayed.Length % m_columnNum == 0 ? 0 : 1);
@@ -224,52 +228,73 @@ namespace BuiltinViewer
 						ev.Use();
 					}
 					break;
+
+				case EventType.ContextClick:
+					if (itemPosition.Contains(ev.mousePosition))
+					{
+						ShowTextureContextMenu(texture);
+						ev.Use();
+					}
+					break;
 			}
 		}
 
-		GUIContent kLabelCopyName = new GUIContent("Copy Name", "選択したテクスチャ名をコピーする");
-		GUIContent kLabelExport = new GUIContent("Export", "選択したテクスチャを指定フォルダに出力");
+		void ShowTextureContextMenu(Texture texture)
+		{
+			var menu = new GenericMenu();
+			menu.AddItem(kCopyNameContext, false, CopyTextureName);
+			menu.AddItem(kExportContext, false, ExportTexture); 
+			menu.ShowAsContext();
+		}
+
+
+		//------------------------------------------------------
+		// footer
+		//------------------------------------------------------
+
+		GUIContent kCopyNameContext = new GUIContent("Copy Name", "選択したテクスチャ名をコピーする");
+		GUIContent kExportContext = new GUIContent("Export", "選択したテクスチャを指定フォルダに出力");
 
 		void DrawFooter()
 		{
-			const float kPaddingL = 8f;
-			const float kPaddingR = 16f;
-			const float kSliderWidth = 64f;
-
-			var itemPosition = GUILayoutUtility.GetRect(GUIContent.none, EditorStyles.toolbar, GUILayout.ExpandWidth(true));
-			GUI.Box(itemPosition, GUIContent.none, EditorStyles.toolbar);
-
-			var selectedName = m_selected ? m_selected.name : "";
-
-			itemPosition.x = kPaddingL;
-			itemPosition.width = 65;
-			GUI.enabled = !string.IsNullOrEmpty(selectedName);
-			if (GUI.Button(itemPosition, kLabelCopyName, EditorStyles.toolbarButton))
+			using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
 			{
-				GUIUtility.systemCopyBuffer = selectedName;
+				GUILayout.Space(kToolbarPadding);
+
+				EditorGUILayout.ObjectField(m_selected, typeof(Texture), false);
+
+				GUI.enabled = m_selected;
+				if (GUILayout.Button(kCopyNameContext, EditorStyles.toolbarButton))
+				{
+					CopyTextureName();
+				}
+				GUI.enabled = true;
+
+				GUI.enabled = m_selected is Texture2D;
+				if (GUILayout.Button(kExportContext, EditorStyles.toolbarButton, GUILayout.Width(50)))
+				{
+					ExportTexture();
+				}
+				GUI.enabled = true;
+
+				GUILayout.FlexibleSpace();
+			
+				m_itemSize = GUILayout.HorizontalSlider(m_itemSize, kItemSizeMin, kItemSizeMax, GUILayout.Width(64));
+
+				GUILayout.Space(kToolbarPadding);
 			}
-			GUI.enabled = true;
-
-			GUI.enabled = m_selected is Texture2D;
-			itemPosition.x += itemPosition.width;
-			itemPosition.width = 40;
-			if (GUI.Button(itemPosition, kLabelExport, EditorStyles.toolbarButton))
-			{
-				ExportTexture(m_selected as Texture2D);
-			}
-			GUI.enabled = true;
-
-			itemPosition.x += itemPosition.width + 4f;
-			itemPosition.width = position.width - itemPosition.x - kSliderWidth - kPaddingR;
-			EditorGUI.LabelField(itemPosition, selectedName);
-
-			itemPosition.x = position.width - kSliderWidth - kPaddingR;
-			itemPosition.width = kSliderWidth;
-			m_itemSize = GUI.HorizontalSlider(itemPosition, m_itemSize, kItemSizeMin, kItemSizeMax);
 		}
 
-		void ExportTexture(Texture2D texture)
+		void CopyTextureName()
 		{
+			GUIUtility.systemCopyBuffer = m_selected.name;
+		}
+
+		void ExportTexture()
+		{
+			var texture = m_selected as Texture2D;
+			if (texture == null) return;
+
 			var path = EditorUtility.SaveFilePanel("Export Texture", Application.dataPath, texture.name, ".png");
 			if (string.IsNullOrEmpty(path)) return;
 
