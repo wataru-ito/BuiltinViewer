@@ -6,8 +6,6 @@ namespace BuiltinViewer
 {
 	public class BuiltinGUISkinViewer : EditorWindow
 	{
-		const float kItemHeight = 16f;
-
 		readonly GUIContent kExportContent = new GUIContent("出力", "現在のGUISkinをアセットとして出力します");
 
 		enum SkinType
@@ -27,14 +25,14 @@ namespace BuiltinViewer
 
 		SkinType m_skinType;
 		SearchType m_searchType;
-		string m_searchString;
+		string m_searchString = "";
 		GUISkin m_skin;
 		GUIStyle[] m_styles;
 
 		GUIStyle m_selectedStyle;
 		Vector2 m_scrollPosition;
 
-		bool m_styleInitialized;
+		bool m_guiInitialized;
 		GUIStyle m_labelStyle;
 		GUIStyle m_sampleTitleStyle;
 
@@ -72,31 +70,26 @@ namespace BuiltinViewer
 		{
 			titleContent = new GUIContent("Skin見る造");
 			minSize = new Vector2(250, 150);
-
-			m_searchString = string.Empty;	
+			
+			m_guiInitialized = false; // コンパイルが走るたびにOnEnable()は呼ばれる
 		}
 
 		void OnGUI()
 		{
-			if (!m_styleInitialized)
+			if (!m_guiInitialized)
 			{
-				InitializeStyles();
+				InitGUI();
 			}
 
-			DrawToolBar();
+			DrawToolbar();
 
-			using (new EditorGUILayout.HorizontalScope())
-			{
-				using (new EditorGUILayout.VerticalScope())
-				{
-					DrawStylelist();
-				}
+			var position = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+			position.width -= m_sampleWidth;
+			DrawStylelist(position);
 
-				using (new EditorGUILayout.VerticalScope(GUILayout.Width(m_sampleWidth)))
-				{
-					DrawSample();
-				}
-			}
+			position.x += position.width;
+			position.width = m_sampleWidth;
+			DrawSample(position);
 		}
 
 
@@ -104,13 +97,13 @@ namespace BuiltinViewer
 		// skin/style
 		//------------------------------------------------------
 
-		void InitializeStyles()
+		void InitGUI()
 		{
 			m_skin = GetSkin(m_skinType);
 			m_styles = GetGUIStyles();
 
 			m_labelStyle = GUI.skin.FindStyle("PR Label");
-			m_sampleTitleStyle = GUI.skin.FindStyle("ProjectBrowserTopBarBg");
+			m_sampleTitleStyle = GUI.skin.FindStyle("OL Titlemid");
 			
 			if (m_labelStyle == null || m_sampleTitleStyle == null)
 			{
@@ -118,7 +111,7 @@ namespace BuiltinViewer
 				return;
 			}
 
-			m_styleInitialized = true;
+			m_guiInitialized = true;
 		}
 
 		static GUISkin GetSkin(SkinType skinType)
@@ -140,44 +133,56 @@ namespace BuiltinViewer
 		// toolbar
 		//------------------------------------------------------
 
-		void DrawToolBar()
+		void DrawToolbar()
 		{
-			GUI.Box(new Rect(0, 0, position.width, 16), GUIContent.none, EditorStyles.toolbar);
+			GUI.Box(new Rect(0, 0, position.width, EditorGUIUtility.singleLineHeight), GUIContent.none, EditorStyles.toolbar);
+
+			const float kPadding = 8f;
 			using (new EditorGUILayout.HorizontalScope())
-			using (var check = new EditorGUI.ChangeCheckScope())
 			{
-				GUILayout.Space(8f);
-
 				EditorGUI.BeginChangeCheck();
-				m_skinType = (SkinType)EditorGUILayout.EnumPopup(m_skinType, EditorStyles.toolbarPopup, GUILayout.Width(80));
-				if (EditorGUI.EndChangeCheck())
-				{
-					m_skin = GetSkin(m_skinType);
-				}
+				GUILayout.Space(kPadding);
 
-				GUILayout.Space(4f);
-
-				if (GUILayout.Button(kExportContent, EditorStyles.toolbarButton, GUILayout.Width(30)))
-				{
-					CreateBuiltinSkinAsset();
-				}
-
-				GUILayout.Space(8f);
+				DrawSkinField();
+				
 				GUILayout.FlexibleSpace();
-				m_searchType = (SearchType)EditorGUILayout.EnumPopup(m_searchType, EditorStyles.toolbarPopup, GUILayout.Width(80));
-				m_searchString = GUILayout.TextField(m_searchString, "ToolbarSeachTextField", GUILayout.MinWidth(30), GUILayout.MaxWidth(200)).ToLower();
-				if (GUILayout.Button(GUIContent.none, "ToolbarSeachCancelButton"))
-				{
-					m_searchString = string.Empty;
-					GUI.FocusControl(null);
-				}
+				
+				DrawSeachField();
 
-				GUILayout.Space(8f);
-
-				if (check.changed)
+				GUILayout.Space(kPadding);
+				if (EditorGUI.EndChangeCheck())
 				{
 					m_styles = GetGUIStyles();
 				}
+			}
+		}
+
+		void DrawSkinField()
+		{
+			EditorGUI.BeginChangeCheck();
+			m_skinType = (SkinType)EditorGUILayout.EnumPopup(m_skinType, EditorStyles.toolbarPopup, GUILayout.Width(80));
+			if (EditorGUI.EndChangeCheck())
+			{
+				m_skin = GetSkin(m_skinType);
+				Selection.activeObject = m_skin;
+			}
+
+			EditorGUILayout.ObjectField(m_skin, typeof(GUISkin), false);
+
+			if (GUILayout.Button(kExportContent, EditorStyles.toolbarButton, GUILayout.Width(30)))
+			{
+				CreateBuiltinSkinAsset();
+			}
+		}
+
+		void DrawSeachField()
+		{
+			m_searchType = (SearchType)EditorGUILayout.EnumPopup(m_searchType, EditorStyles.toolbarPopup, GUILayout.Width(90));
+			m_searchString = GUILayout.TextField(m_searchString, "ToolbarSeachTextField", GUILayout.MinWidth(30), GUILayout.MaxWidth(200)).ToLower();
+			if (GUILayout.Button(GUIContent.none, "ToolbarSeachCancelButton"))
+			{
+				m_searchString = string.Empty;
+				GUI.FocusControl(null);
 			}
 		}
 
@@ -188,29 +193,43 @@ namespace BuiltinViewer
 
 			return m_searchType == SearchType.StyleName ?
 				Array.FindAll(m_skin.customStyles, i => i.name.ToLower().Contains(m_searchString)) :
-				Array.FindAll(m_skin.customStyles, i => Contains(i));
+				Array.FindAll(m_skin.customStyles, i => IsTarget(i));
 		}
 
-		bool Contains(GUIStyle style)
+		bool IsTarget(GUIStyle style)
 		{
-			return Contains(style.active) ||
-				Contains(style.focused) ||
-				Contains(style.hover) ||
-				Contains(style.normal) ||
-				Contains(style.onActive) ||
-				Contains(style.onFocused) ||
-				Contains(style.onHover) ||
-				Contains(style.onNormal);
+			return IsTarget(style.active) ||
+				IsTarget(style.focused) ||
+				IsTarget(style.hover) ||
+				IsTarget(style.normal) ||
+				IsTarget(style.onActive) ||
+				IsTarget(style.onFocused) ||
+				IsTarget(style.onHover) ||
+				IsTarget(style.onNormal);
 		}
 
-		bool Contains(GUIStyleState state)
+		bool IsTarget(GUIStyleState state)
 		{
 			return state.background && state.background.name.ToLower().Contains(m_searchString);
 		}
 
 		void CreateBuiltinSkinAsset()
 		{
-			var assetPath = string.Format("Assets/{0}.guiskin", m_skin.name);
+			var filePath = EditorUtility.SaveFilePanel("GUISkin出力", "Assets/", m_skin.name, "guiskin");
+			if (string.IsNullOrEmpty(filePath)) 
+				return;
+
+			if (!filePath.StartsWith(Application.dataPath))
+			{
+				EditorUtility.DisplayDialog("GUISkin出力",
+					"場所は Assets/以下 でお願いします",
+					"選びなおす");
+
+				EditorApplication.delayCall += CreateBuiltinSkinAsset;
+				return;
+			}
+
+			var assetPath = filePath.Substring(Application.dataPath.Length - 6);
 
 			var guiSkin = Instantiate(m_skin);
 			AssetDatabase.CreateAsset(guiSkin, assetPath);
@@ -227,18 +246,14 @@ namespace BuiltinViewer
 		// stylelist
 		//------------------------------------------------------
 
-		void DrawStylelist()
+		void DrawStylelist(Rect position)
 		{
-			var position = GUILayoutUtility.GetRect(GUIContent.none, "ScrollView", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-
-			var viewRect = new Rect(0, 0, position.width - 16, m_styles.Length * kItemHeight);
+			var viewRect = new Rect(0, 0, position.width - GUI.skin.verticalScrollbar.fixedWidth, EditorGUIUtility.singleLineHeight * m_styles.Length);
 			using (var scroll = new GUI.ScrollViewScope(position, m_scrollPosition, viewRect, false, true))
 			{
-				var itemPosition = new Rect(0, 0, viewRect.width, kItemHeight);
-				foreach (var style in m_styles)
+				for (int i = 0; i < m_styles.Length; ++i)
 				{
-					GUIStyleField(itemPosition, style);
-					itemPosition.y += itemPosition.height;
+					GUIStyleField(new Rect(0, EditorGUIUtility.singleLineHeight * i, viewRect.width, EditorGUIUtility.singleLineHeight), m_styles[i]);
 				}
 
 				m_scrollPosition = scroll.scrollPosition;
@@ -282,9 +297,21 @@ namespace BuiltinViewer
 					{
 						m_selectedStyle = style;
 						ev.Use();
+						GUI.FocusControl("");
 					}
 					break;
+
+				case EventType.ContextClick:
+					ShowStyleContextMenu(style);
+					break;
 			}
+		}
+
+		void ShowStyleContextMenu(GUIStyle style)
+		{
+			var menu = new GenericMenu();
+			menu.AddItem(new GUIContent("Copy Name"), false, () => EditorGUIUtility.systemCopyBuffer = style.name);
+			menu.ShowAsContext();
 		}
 
 		bool NextStyle(float displayHeight)
@@ -296,7 +323,7 @@ namespace BuiltinViewer
 			
 			++index;
 			m_selectedStyle = m_styles[index];
-			m_scrollPosition.y = Mathf.Max(m_scrollPosition.y, GetItemPositionY(index + 1) - displayHeight);
+			m_scrollPosition.y = Mathf.Max(m_scrollPosition.y, EditorGUIUtility.singleLineHeight * (index + 1) - displayHeight);
 
 			return true;
 		}
@@ -310,14 +337,9 @@ namespace BuiltinViewer
 			
 			--index;
 			m_selectedStyle = m_styles[index];
-			m_scrollPosition.y = Mathf.Min(m_scrollPosition.y, GetItemPositionY(index));
+			m_scrollPosition.y = Mathf.Min(m_scrollPosition.y, EditorGUIUtility.singleLineHeight * (index));
 
 			return true;
-		}
-
-		static float GetItemPositionY(int index)
-		{
-			return index * kItemHeight;
 		}
 
 
@@ -325,15 +347,13 @@ namespace BuiltinViewer
 		// sample
 		//------------------------------------------------------
 
-		void DrawSample()
+		void DrawSample(Rect position)
 		{
-			var position = GUILayoutUtility.GetRect(0, 0, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-			OperateSampleFieldWidth(ref position);
+			OperateSampleFieldWidth(new Rect(position.x, position.y, 4, position.height));
 
-			var itemPosition = position;
-			itemPosition.height = 16f;
+			position.height = EditorGUIUtility.singleLineHeight;
 
-			DrawSampleHeader(ref itemPosition);
+			DrawSampleHeader(ref position);
 			
 			if (m_selectedStyle == null)
 				return;
@@ -341,34 +361,34 @@ namespace BuiltinViewer
 			var labelWidth = EditorGUIUtility.labelWidth;
 			EditorGUIUtility.labelWidth = position.width * 0.5f;
 
-			DrawSample(ref itemPosition); 
-			itemPosition.y += itemPosition.height;
+			DrawSample(ref position); 
+			position.y += position.height;
 			
-			DrawGUISample(ref itemPosition); 			
-			itemPosition.y += itemPosition.height;
+			DrawGUISample(ref position); 			
+			position.y += position.height;
 			
-			DrawEditorGUISample(ref itemPosition);
-			itemPosition.y += itemPosition.height;
+			DrawEditorGUISample(ref position);
+			position.y += position.height;
 			
 			EditorGUIUtility.labelWidth = labelWidth;
 		}
 
-		void OperateSampleFieldWidth(ref Rect sampleRect)
+		void OperateSampleFieldWidth(Rect position)
 		{
-			var slideRect = new Rect(sampleRect.x, sampleRect.yMin, 3f, sampleRect.height);
-			EditorGUIUtility.AddCursorRect(slideRect, MouseCursor.ResizeHorizontal);
+			var edgeRect = new Rect(position.x, position.yMin, 3f, position.height);
 
 			var controlID = GUIUtility.GetControlID(FocusType.Passive);
 			var ev = Event.current;
 			switch (ev.GetTypeForControl(controlID))
 			{
 				case EventType.MouseDown:
-					if (slideRect.Contains(ev.mousePosition) && GUIUtility.hotControl == 0)
+					if (edgeRect.Contains(ev.mousePosition) && GUIUtility.hotControl == 0)
 					{
 						GUIUtility.hotControl = controlID;
 						m_sampleEditBeganValue = m_sampleWidth;
 						m_sampleEditBeganX = ev.mousePosition.x;
 						ev.Use();
+						GUI.FocusControl("");
 					}
 					break;
 
@@ -389,6 +409,10 @@ namespace BuiltinViewer
 					}
 					break;
 			}
+
+			// 領域指定じゃなくて完全にマウスカーソルを変える方法ないかな？
+			EditorGUIUtility.AddCursorRect(GUIUtility.hotControl == controlID ? new Rect(0, 0, Screen.width, Screen.height) : edgeRect,
+				MouseCursor.ResizeHorizontal);
 		}
 
 		void DrawSampleHeader(ref Rect position)
@@ -446,7 +470,7 @@ namespace BuiltinViewer
 			position.y += position.height;
 			EditorGUI.LabelField(position, "Label", m_selectedStyle);
 			position.y += position.height;
-			EditorGUI.LabelField(position, "Label", "Label", m_selectedStyle);
+			EditorGUI.LabelField(position, "Label", "Label2", m_selectedStyle);
 			position.y += position.height;
 			m_sampleValue = EditorGUI.Popup(position, "Popup", m_sampleValue, new string[] { "Sample1", "Sample2", }, m_selectedStyle);
 			position.y += position.height;
