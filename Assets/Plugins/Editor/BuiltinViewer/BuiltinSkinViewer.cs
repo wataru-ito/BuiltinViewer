@@ -262,7 +262,7 @@ namespace BuiltinViewer
 			var ev = Event.current;
 			switch (ev.type)
 			{
-				case EventType.keyDown:
+				case EventType.KeyDown:
 					switch (ev.keyCode)
 					{
 						case KeyCode.UpArrow:
