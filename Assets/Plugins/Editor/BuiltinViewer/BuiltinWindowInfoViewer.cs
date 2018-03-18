@@ -53,7 +53,7 @@ namespace BuiltinViewer
 			{
 				m_window = focusedWindow;
 			}
-			
+
 			Repaint(); // サイズ等の値をリアルタイム反映させるために毎フレーム描画
 		}
 
@@ -68,12 +68,12 @@ namespace BuiltinViewer
 			++EditorGUI.indentLevel;
 
 			EditorGUIUtility.wideMode = true;
-			
+
 			EditorGUILayout.LabelField("titleContent", m_window.titleContent.text);
 			EditorGUILayout.RectField("position", m_window.position);
 			EditorGUILayout.Vector2Field("minSize", m_window.minSize);
 			EditorGUILayout.Vector2Field("maxSize", m_window.maxSize);
-		
+
 			--EditorGUI.indentLevel;
 		}
 
@@ -86,7 +86,7 @@ namespace BuiltinViewer
 		{
 			EditorGUILayout.LabelField("Class Info");
 			++EditorGUI.indentLevel;
-			
+
 			var type = m_window.GetType();
 			EditorGUILayout.LabelField(type.FullName);
 
@@ -104,7 +104,7 @@ namespace BuiltinViewer
 				switch (kTab[m_iTab])
 				{
 					case "Method":
-						DrawMethods(type); 
+						DrawMethods(type);
 						break;
 
 					case "Property":
@@ -117,7 +117,7 @@ namespace BuiltinViewer
 				}
 				m_scrollPosition = scroll.scrollPosition;
 			}
-			
+
 			--EditorGUI.indentLevel;
 		}
 

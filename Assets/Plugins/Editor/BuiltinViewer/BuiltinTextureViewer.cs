@@ -104,7 +104,7 @@ namespace BuiltinViewer
 		//------------------------------------------------------
 		// texture list
 		//------------------------------------------------------
-		
+
 		void DrawTextureList()
 		{
 			m_scrollRect = GUILayoutUtility.GetRect(GUIContent.none, "ScrollView", GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
@@ -243,7 +243,7 @@ namespace BuiltinViewer
 		{
 			var menu = new GenericMenu();
 			menu.AddItem(kCopyNameContext, false, CopyTextureName);
-			menu.AddItem(kExportContext, false, ExportTexture); 
+			menu.AddItem(kExportContext, false, ExportTexture);
 			menu.ShowAsContext();
 		}
 
@@ -278,7 +278,7 @@ namespace BuiltinViewer
 				GUI.enabled = true;
 
 				GUILayout.FlexibleSpace();
-			
+
 				m_itemSize = GUILayout.HorizontalSlider(m_itemSize, kItemSizeMin, kItemSizeMax, GUILayout.Width(64));
 
 				GUILayout.Space(kToolbarPadding);
