@@ -8,7 +8,7 @@ EditorGUIUtility.Load() で内蔵のテクスチャが取得できるけど、
 
 * Menu > Window > Builtin > BuiltinTextureViewer
 
-![サムネイル](https://github.com/wataru-ito/BuiltinViewer/blob/master/Readme_image/builtintextureviewer.jpg)
+![サムネイル](./Readme_image/builtintextureviewer.jpg)
 
 
 ## BuiltinSkinViewer 
@@ -18,9 +18,9 @@ EditorGUIUtility.Load() で内蔵のテクスチャが取得できるけど、
 
 * Menu > Window > Builtin > BuiltinSkinViewer
 
-![サムネイル](https://github.com/wataru-ito/BuiltinViewer/blob/master/Readme_image/builtinskinviewer.jpg)
+![サムネイル](./Readme_image/builtinskinviewer.jpg)
 
 
 # Install
 
-[パッケージファイル](https://github.com/wataru-ito/BuiltinViewer/blob/master/BuiltinViewer.unitypackage)
+[パッケージファイル](./BuiltinViewer.unitypackage)
