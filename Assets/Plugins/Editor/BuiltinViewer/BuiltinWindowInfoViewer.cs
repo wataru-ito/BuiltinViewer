@@ -98,7 +98,7 @@ namespace BuiltinViewer
 
 
 			m_iTab = GUILayout.Toolbar(m_iTab, kTab);
-			m_bindingFlags = (BindingFlags)EditorGUILayout.EnumFlagsField("BindingFlags", m_bindingFlags);
+			m_bindingFlags = (BindingFlags)EditorGUILayout.EnumMaskField("BindingFlags", m_bindingFlags);
 			using (var scroll = new EditorGUILayout.ScrollViewScope(m_scrollPosition, GUI.skin.box))
 			{
 				switch (kTab[m_iTab])
